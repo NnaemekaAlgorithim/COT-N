@@ -37,6 +37,9 @@ USER appuser
 
 ENV PYTHONPATH=/app
 ENV DJANGO_SETTINGS_MODULE=config.settings.prod_settings
+# appuser has no home dir (--no-create-home); point HOME at a writable path
+# so gunicorn's control-socket state doesn't fail with permission denied.
+ENV HOME=/app
 
 # Dummy values so collectstatic can import settings at build time without real secrets/DB.
 RUN SECRET_KEY=dummy-build-key DATABASE_URL=postgresql://user:pass@localhost:5432/dummy \
