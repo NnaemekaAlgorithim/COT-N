@@ -21,7 +21,7 @@
 set -euo pipefail
 
 # TODO: set this to your COT-N git remote URL
-REPO_URL="TODO_SET_ME"
+REPO_URL="https://github.com/NnaemekaAlgorithim/COT-N.git"
 BRANCH="main"
 PROJECT_DIR="/root/COT-N"
 
