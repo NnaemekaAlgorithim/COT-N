@@ -5,7 +5,13 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from . import services
-from .serializers import LoginSerializer, RegisterSerializer, VerifyEmailSerializer
+from .serializers import (
+    LoginSerializer,
+    PasswordResetConfirmSerializer,
+    PasswordResetRequestSerializer,
+    RegisterSerializer,
+    VerifyEmailSerializer,
+)
 
 
 def _tokens_for_user(user):
@@ -57,3 +63,28 @@ class LoginView(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data['user']
         return Response({'detail': 'Login successful.', **_tokens_for_user(user)})
+
+
+class PasswordResetRequestView(generics.GenericAPIView):
+    serializer_class = PasswordResetRequestSerializer
+    permission_classes = [AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        services.request_password_reset(serializer.validated_data['email'])
+        return Response({'detail': 'If that email is registered, a reset code has been sent to it.'})
+
+
+class PasswordResetConfirmView(generics.GenericAPIView):
+    serializer_class = PasswordResetConfirmSerializer
+    permission_classes = [AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            services.reset_password(**serializer.validated_data)
+        except services.PasswordResetError as exc:
+            raise ValidationError({'code': str(exc)})
+        return Response({'detail': 'Password reset successfully. You can now log in with your new password.'})

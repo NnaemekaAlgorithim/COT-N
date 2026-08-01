@@ -2,6 +2,9 @@ import dj_database_url
 
 from .base_settings import *  # noqa: F401,F403
 
+# Never fall back to the console backend in production, even if EMAIL_BACKEND is unset in .env.
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+
 DATABASES = {
     'default': dj_database_url.parse(DATABASE_URL)
 }

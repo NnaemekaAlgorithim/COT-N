@@ -20,3 +20,23 @@ class VerificationEmail:
             html_message=html_message,
             fail_silently=False,
         )
+
+
+class PasswordResetEmail:
+    html_email_template_name = 'email_templates/password_reset_email.html'
+
+    def __init__(self, context):
+        self.context = context
+
+    def send(self, to):
+        subject = 'Reset your COT-N password'
+        html_message = render_to_string(self.html_email_template_name, self.context)
+        send_mail(
+            subject,
+            '',
+            settings.DEFAULT_FROM_EMAIL,
+            to,
+            html_message=html_message,
+            fail_silently=False,
+        )
+

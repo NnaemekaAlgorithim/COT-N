@@ -4,18 +4,27 @@ import string
 from django.core.cache import cache
 from django.utils.crypto import get_random_string
 
-from .emails import VerificationEmail
+from .emails import PasswordResetEmail, VerificationEmail
 from .models import User
 
 VERIFICATION_CODE_TTL_SECONDS = 300
+PASSWORD_RESET_CODE_TTL_SECONDS = 300
 
 
 class VerificationError(Exception):
     pass
 
 
+class PasswordResetError(Exception):
+    pass
+
+
 def _verification_cache_key(email):
     return f'email_verification_code_{email.lower()}'
+
+
+def _password_reset_cache_key(email):
+    return f'password_reset_code_{email.lower()}'
 
 
 def generate_unique_username():
@@ -64,6 +73,33 @@ def verify_email(*, email, code):
 
     user = User.objects.get(email__iexact=email)
     user.is_active = True
+    user.save()
+    cache.delete(cache_key)
+    return user
+
+
+def request_password_reset(email):
+    # Silently no-op for unknown emails so the endpoint can't be used to enumerate accounts.
+    try:
+        user = User.objects.get(email__iexact=email)
+    except User.DoesNotExist:
+        return
+
+    code = generate_verification_code()
+    cache.set(_password_reset_cache_key(email), code, timeout=PASSWORD_RESET_CODE_TTL_SECONDS)
+    PasswordResetEmail({'user': user, 'verification_code': code}).send([user.email])
+
+
+def reset_password(*, email, code, new_password):
+    cache_key = _password_reset_cache_key(email)
+    stored_code = cache.get(cache_key)
+    if not stored_code:
+        raise PasswordResetError('No password reset code found or it has expired.')
+    if code != stored_code:
+        raise PasswordResetError('Invalid password reset code.')
+
+    user = User.objects.get(email__iexact=email)
+    user.set_password(new_password)
     user.save()
     cache.delete(cache_key)
     return user

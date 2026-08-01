@@ -51,3 +51,19 @@ class LoginSerializer(serializers.Serializer):
 
         attrs['user'] = authenticated_user
         return attrs
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    # Deliberately does not validate that the email exists, to avoid account enumeration.
+    email = serializers.EmailField()
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    code = serializers.CharField(max_length=6, min_length=6)
+    new_password = serializers.CharField(write_only=True, min_length=8)
+
+    def validate_email(self, value):
+        if not User.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError('No user found with this email.')
+        return value
