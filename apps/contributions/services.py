@@ -2,6 +2,8 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.base.models import set_current_user
+from apps.notifications.models import Notification
+from apps.notifications.services import notify_admins_and_founder, notify_user
 from apps.organizations.models import Membership, Organization
 
 from .models import Contribution
@@ -21,9 +23,18 @@ def make_contribution(*, user, organization, amount):
         raise ContributionError('Contribution amount must be greater than zero.')
 
     set_current_user(user)
-    return Contribution.objects.create(
+    contribution = Contribution.objects.create(
         organization=organization, contributor=user, amount=amount, status=Contribution.IN_PROGRESS
     )
+    notify_admins_and_founder(
+        organization=organization,
+        title='New contribution submitted',
+        body=f'{user.email} contributed {amount} in {organization.name}, pending acknowledgement.',
+        notification_type=Notification.CONTRIBUTION_SUBMITTED,
+        data={'contribution_id': contribution.id},
+        exclude_user=user,
+    )
+    return contribution
 
 
 def acknowledge_contribution(*, acknowledger, contribution):
@@ -61,4 +72,13 @@ def acknowledge_contribution(*, acknowledger, contribution):
         contribution.acknowledged_at = timezone.now()
         contribution.acknowledged_by = acknowledger
         contribution.save()
+
+    notify_user(
+        recipient=contribution.contributor,
+        title='Contribution acknowledged',
+        body=f'Your contribution of {contribution.amount} in {organization.name} has been acknowledged.',
+        notification_type=Notification.CONTRIBUTION_ACKNOWLEDGED,
+        organization=organization,
+        data={'contribution_id': contribution.id},
+    )
     return contribution

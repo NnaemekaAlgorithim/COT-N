@@ -2,6 +2,8 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.base.models import set_current_user
+from apps.notifications.models import Notification
+from apps.notifications.services import notify_admins_and_founder, notify_user
 from apps.organizations.models import Membership, Organization
 
 from .models import Loan
@@ -37,7 +39,7 @@ def request_loan(*, user, organization, amount):
         raise LoanError('Requested amount exceeds the available principal capital.')
 
     set_current_user(user)
-    return Loan.objects.create(
+    loan = Loan.objects.create(
         organization=organization,
         borrower=user,
         amount=amount,
@@ -46,6 +48,15 @@ def request_loan(*, user, organization, amount):
         interest_rate_percent=organization.interest_rate_percent,
         defaulter_penalty_rate_percent=organization.defaulter_penalty_rate_percent,
     )
+    notify_admins_and_founder(
+        organization=organization,
+        title='New loan request',
+        body=f'{user.email} requested a loan of {amount} in {organization.name}.',
+        notification_type=Notification.LOAN_REQUEST_SUBMITTED,
+        data={'loan_id': loan.id},
+        exclude_user=user,
+    )
+    return loan
 
 
 def decide_loan(*, decider, loan, approve):
@@ -60,6 +71,20 @@ def decide_loan(*, decider, loan, approve):
     else:
         loan.status = Loan.REJECTED
     loan.save()
+
+    if approve:
+        founder_membership = Membership.objects.filter(
+            organization=loan.organization, role=Membership.FOUNDER, status=Membership.APPROVED
+        ).first()
+        if founder_membership:
+            notify_user(
+                recipient=founder_membership.user,
+                title='Loan approved',
+                body=f'A loan of {loan.amount} for {loan.borrower.email} in {loan.organization.name} is approved and ready to send.',
+                notification_type=Notification.LOAN_APPROVED,
+                organization=loan.organization,
+                data={'loan_id': loan.id},
+            )
     return loan
 
 
@@ -83,6 +108,15 @@ def send_loan(*, founder, loan):
         loan.status = Loan.SENT
         loan.sent_at = timezone.now()
         loan.save()
+
+    notify_user(
+        recipient=loan.borrower,
+        title='Loan sent',
+        body=f'Your loan of {loan.amount} in {loan.organization.name} has been sent.',
+        notification_type=Notification.LOAN_SENT,
+        organization=loan.organization,
+        data={'loan_id': loan.id},
+    )
     return loan
 
 
@@ -126,4 +160,12 @@ def repay_loan(*, user, loan):
         loan.status = Loan.REPAID
         loan.repaid_at = timezone.now()
         loan.save()
+
+    notify_admins_and_founder(
+        organization=loan.organization,
+        title='Loan repayment logged',
+        body=f'{loan.borrower.email} repaid their loan of {loan.amount} in {loan.organization.name}.',
+        notification_type=Notification.LOAN_REPAYMENT_LOGGED,
+        data={'loan_id': loan.id},
+    )
     return loan

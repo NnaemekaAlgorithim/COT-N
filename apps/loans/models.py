@@ -40,6 +40,9 @@ class Loan(BaseModel):
     received_at = models.DateTimeField(null=True, blank=True)
     due_date = models.DateTimeField(null=True, blank=True)
     repaid_at = models.DateTimeField(null=True, blank=True)
+    # Guards against re-sending the same reminder/alert on every check_loan_reminders run.
+    due_reminder_sent_at = models.DateTimeField(null=True, blank=True)
+    overdue_notified_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         app_label = 'loans'

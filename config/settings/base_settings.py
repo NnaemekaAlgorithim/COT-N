@@ -23,6 +23,7 @@ from config.configurations import (
     EMAIL_HOST_USER,
     EMAIL_PORT,
     EMAIL_USE_TLS,
+    FIREBASE_CREDENTIALS_PATH,
     PAYSTACK_BASE_URL,
     PAYSTACK_PUBLIC_KEY,
     PAYSTACK_SECRET_KEY,
@@ -63,6 +64,7 @@ INSTALLED_APPS = [
     'apps.organizations',
     'apps.loans',
     'apps.contributions',
+    'apps.notifications',
 ]
 
 AUTH_USER_MODEL = 'users.User'
@@ -136,6 +138,8 @@ DEFAULT_FROM_EMAIL = DEFAULT_FROM_EMAIL
 PAYSTACK_SECRET_KEY = PAYSTACK_SECRET_KEY
 PAYSTACK_PUBLIC_KEY = PAYSTACK_PUBLIC_KEY
 PAYSTACK_BASE_URL = PAYSTACK_BASE_URL
+
+FIREBASE_CREDENTIALS_PATH = FIREBASE_CREDENTIALS_PATH
 
 
 # Password validation
