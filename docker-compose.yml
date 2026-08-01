@@ -1,0 +1,41 @@
+# COT-N docker compose.
+#
+# This project has no db/redis containers of its own — it connects to the same
+# external (Render) Postgres server InventoryMaster2 uses, via DATABASE_URL in .env.
+#
+# It also has no nginx of its own: it shares InventoryMaster2's nginx container by
+# joining the "shared_frontend" network that InventoryMaster2's docker-compose.yml
+# publishes. Bring InventoryMaster2's stack up first so that network exists.
+
+services:
+  migrate:
+    build: .
+    command: sh -c "python manage.py migrate"
+    env_file: .env
+    networks:
+      - shared_frontend
+    restart: "no"
+
+  web:
+    build: .
+    container_name: cotn_web
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - static_files:/app/staticfiles
+      - media_files:/app/mediafiles
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - shared_frontend
+
+volumes:
+  static_files:
+    name: cotn_static_files
+  media_files:
+    name: cotn_media_files
+
+networks:
+  shared_frontend:
+    external: true
